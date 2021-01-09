@@ -1,0 +1,137 @@
+//Written By Josh Khorsandi 2021
+
+const w = 800;
+const h = 400;
+const padding = 96;
+const barWidth = w / 275;
+
+// Creates the svg node in the visHolder div
+let svg = d3.
+select(".visHolder").
+append("svg").
+attr("width", w + 100).
+attr("height", h + 60);
+
+//Build tooltip
+let Tooltip = d3.
+select(".visHolder").
+append("div").
+style("opacity", 0).
+attr("id", "tooltip").
+style("background-color", "gray").
+style("border", "solid").
+style("border-width", "2px").
+style("border-radius", "5px").
+style("transform", "translateX(60px)").
+style("padding", "5px");
+
+
+// Loads and displays the actual bar chart, axes and tooltip from the data using d3.json()
+d3.json(
+"https://raw.githubusercontent.com/FreeCodeCamp/ProjectReferenceData/master/GDP-data.json",
+function (e, data) {
+  svg.
+  append("text").
+  attr("x", w / 2 + 120).
+  attr("y", h + 50).
+  text("More Information: http://www.bea.gov/national/pdf/nipaguid.pdf").
+  attr("class", "info");
+
+  let yearsDate = data.data.map(function (item) {
+    return new Date(item[0]);
+  });
+
+  var years = data.data.map(function (item) {
+    var quarter;
+    var temp = item[0].substring(5, 7);
+
+    if (temp === "01") {
+      quarter = "Q1";
+    } else if (temp === "04") {
+      quarter = "Q2";
+    } else if (temp === "07") {
+      quarter = "Q3";
+    } else if (temp === "10") {
+      quarter = "Q4";
+    }
+
+    return item[0].substring(0, 4) + " " + quarter;
+  });
+
+  // X - Axis Code
+  let xMin = d3.min(yearsDate);
+  console.log(xMin);
+  let xMax = new Date(d3.max(yearsDate));
+  const xScale = d3.scaleTime().domain([xMin, xMax]).range([0, w]);
+
+  const xAxis = d3.axisBottom(xScale);
+  svg.
+  append("g").
+  attr("id", "x-axis").
+  attr("transform", "translate(60, 400)").
+  call(xAxis);
+
+  // Y Axis Code
+  let scaledGDP = [];
+
+  let GDP = data.data.map(function (item) {
+    return item[1];
+  });
+
+  let linearScale = d3.
+  scaleLinear().
+  domain([0, d3.max(GDP)]).
+  range([0, h]);
+
+  scaledGDP = GDP.map(function (item) {
+    return linearScale(item);
+  });
+
+  let yScale = d3.
+  scaleLinear().
+  domain([0, d3.max(GDP)]).
+  range([h, 0]);
+  const yAxis = d3.axisLeft(yScale);
+  svg.
+  append("g").
+  call(yAxis).
+  attr("id", "y-axis").
+  attr("transform", "translate(60, 0)");
+
+
+  //Display tooltip on hover / move / leave bar
+  let mouseover = function (d, i) {
+    Tooltip.transition().duration(200).style("opacity", 0.9);
+    d3.select(this).style("fill", "black").style("opacity", 1);
+    Tooltip.html(
+    years[i] +
+    "<br>" +
+    "$" +
+    GDP[i].toFixed(1).replace(/(\d)(?=(\d{3})+\.)/g, "$1,") +
+    " Billion").
+
+    attr("data-date", (d, i) => data.data[i][0]);
+  };
+  let mouseleave = function (d) {
+    Tooltip.style("opacity", 0);
+    d3.select(this).style("fill", "#33adff");
+  };
+
+  // Create the bars from the scaledGDP
+  svg.
+  selectAll("rect").
+  data(scaledGDP).
+  enter().
+  append("rect").
+  attr("x", (d, i) => xScale(yearsDate[i])).
+  attr("y", (d, i) => h - d).
+  attr("width", (d, i) => barWidth).
+  attr("height", (d, i) => d).
+  style("fill", "#33adff").
+  attr("transform", "translate(60, 0)").
+  attr("class", "bar").
+  attr("data-date", (d, i) => data.data[i][0]).
+  attr("data-gdp", (d, i) => data.data[i][1]).
+  on("mouseover", mouseover).
+  on("mouseleave", mouseleave);
+});
